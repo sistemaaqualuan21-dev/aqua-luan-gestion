@@ -39,9 +39,9 @@ const DOMINIO_LOGIN = '@luanaqua.app';
 function _emailDeUsuario(usuario){
   const limpio = usuario.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'');
   // [NEW] Caso especial: la cuenta admin usa un correo REAL
-  // (elhychristian@gmail.com) en vez del dominio interno, para que
+  // (sistemaaqualuan21@gmail.com) en vez del dominio interno, para que
   // "¿Olvidaste tu contraseña?" funcione de verdad si algún día hace falta.
-  if(limpio === 'admin') return 'elhychristian@gmail.com';
+  if(limpio === 'admin') return 'sistemaaqualuan21@gmail.com';
   return limpio + DOMINIO_LOGIN;
 }
 /* [SECURITY FIX] Escapa cualquier dato que venga de un usuario (cliente, notas, dirección,
@@ -475,8 +475,8 @@ async function olvidoPasswordAdmin(){
     return;
   }
   try{
-    await firebase.auth().sendPasswordResetEmail('elhychristian@gmail.com');
-    alert('✅ Se envió un correo de recuperación a elhychristian@gmail.com. Revisa tu bandeja (y spam) y sigue el enlace para crear una nueva contraseña.');
+    await firebase.auth().sendPasswordResetEmail('sistemaaqualuan21@gmail.com');
+    alert('✅ Se envió un correo de recuperación a sistemaaqualuan21@gmail.com. Revisa tu bandeja (y spam) y sigue el enlace para crear una nueva contraseña.');
   }catch(err){
     console.error(err);
     alert('❌ No se pudo enviar el correo de recuperación: ' + err.message);
