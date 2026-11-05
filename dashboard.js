@@ -4375,7 +4375,38 @@ function toggleDropdownPago(ev) {
   if (ev) ev.stopPropagation();
   const dd = document.getElementById('dropdownPago');
   if (dd) dd.classList.toggle('open');
+  /* [NEW 05-nov] Igual que el filtro de productos: la lista flota sobre la página para
+     que la tarjeta de la tabla no la recorte cuando hay pocos pedidos */
+  if (dd && dd.classList.contains('open')) {
+    _posicionarDropdownPago();
+    const ddProd = document.getElementById('dropdownProducto');
+    if (ddProd) ddProd.classList.remove('open');
+  }
 }
+function _posicionarDropdownPago() {
+  const dd = document.getElementById('dropdownPago');
+  const btn = document.querySelector('#tableCard .filtro-pago-wrap:not(#filtroProductoWrap) .btn-filter');
+  if (!dd || !btn || !dd.classList.contains('open')) return;
+  const r = btn.getBoundingClientRect();
+  const ancho = Math.max(200, r.width);
+  if (dd.parentElement !== document.body) document.body.appendChild(dd);
+  dd.style.position = 'fixed';
+  dd.style.zIndex = '1000';
+  /* si no hay espacio abajo (botón al final de la pantalla), se abre hacia arriba */
+  const _abajo = window.innerHeight - r.bottom - 14, _arriba = r.top - 14;
+  const _haciaArriba = _abajo < 220 && _arriba > _abajo;
+  dd.style.top = _haciaArriba ? 'auto' : (r.bottom + 6) + 'px';
+  dd.style.bottom = _haciaArriba ? (window.innerHeight - r.top + 6) + 'px' : 'auto';
+  dd.style.left = Math.max(8, Math.min(r.left, window.innerWidth - ancho - 8)) + 'px';
+  dd.style.right = 'auto';
+  dd.style.width = ancho + 'px';
+  dd.style.maxHeight = Math.max(120, _haciaArriba ? _arriba : _abajo) + 'px';
+}
+window.addEventListener('scroll', (ev) => {
+  const dd = document.getElementById('dropdownPago');
+  if (dd && !dd.contains(ev.target)) _posicionarDropdownPago();
+}, true);
+window.addEventListener('resize', () => _posicionarDropdownPago());
 document.addEventListener('click', (ev) => {
   const dd = document.getElementById('dropdownPago');
   if (dd && dd.classList.contains('open') && !dd.contains(ev.target) && ev.target.closest('.filtro-pago-wrap') === null) {
@@ -4458,11 +4489,15 @@ function _posicionarDropdownProducto() {
   if (dd.parentElement !== document.body) document.body.appendChild(dd); // fuera de la tarjeta (su animación recortaba la lista)
   dd.style.position = 'fixed';
   dd.style.zIndex = '1000';
-  dd.style.top = (r.bottom + 6) + 'px';
+  /* si no hay espacio abajo (botón al final de la pantalla), se abre hacia arriba */
+  const _abajo = window.innerHeight - r.bottom - 14, _arriba = r.top - 14;
+  const _haciaArriba = _abajo < 220 && _arriba > _abajo;
+  dd.style.top = _haciaArriba ? 'auto' : (r.bottom + 6) + 'px';
+  dd.style.bottom = _haciaArriba ? (window.innerHeight - r.top + 6) + 'px' : 'auto';
   dd.style.left = Math.max(8, Math.min(r.right - ancho, window.innerWidth - ancho - 8)) + 'px';
   dd.style.right = 'auto';
   dd.style.width = ancho + 'px';
-  dd.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 20) + 'px';
+  dd.style.maxHeight = Math.max(120, _haciaArriba ? _arriba : _abajo) + 'px';
 }
 window.addEventListener('scroll', (ev) => {
   const dd = document.getElementById('dropdownProducto');
@@ -8873,7 +8908,9 @@ function _opcionesGastoDesc(actual){
   const act=String(actual||'').trim();
   let html='<option value="">Selecciona...</option>';
   if(act && !GASTOS_PERMITIDOS.includes(act)) html+=`<option value="" selected disabled>${escHTML(act)} (anterior)</option>`;
-  return html+GASTOS_PERMITIDOS.map(o=>`<option value="${o}" ${o===act?'selected':''}>${o}</option>`).join('');
+  /* [NEW 05-nov] Orden alfabético con OTROS al final (igual que en la app de pedidos) */
+  const _ordenGastos=GASTOS_PERMITIDOS.filter(o=>o!=='OTROS').slice().sort((x,y)=>x.localeCompare(y,'es',{sensitivity:'base'})).concat(GASTOS_PERMITIDOS.includes('OTROS')?['OTROS']:[]);
+  return html+_ordenGastos.map(o=>`<option value="${o}" ${o===act?'selected':''}>${o}</option>`).join('');
 }
 /* [FIX 26-oct] Campo de texto libre para la opción OTROS (igual que en la app de pedidos).
    La categoría se guarda como 'OTROS' y la descripción lleva el texto escrito. */
