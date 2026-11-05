@@ -131,9 +131,19 @@
           <div class="table-header">
             <div class="table-title">📋 Detalle de pedidos</div>
             <div style="display:flex;align-items:center;gap:8px">
-              <select id="filtroProducto" onchange="onChangeFiltroProducto()" style="background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;padding:9px 12px;outline:none;cursor:pointer">
-                <option value="">📦 Todos los productos</option>
-              </select>
+              <!-- [NEW 05-nov] Filtro de productos tipo checklist (lista desplegable con casillas, igual que Pago) -->
+              <div class="filtro-pago-wrap" id="filtroProductoWrap">
+                <button type="button" class="btn-filter" style="background:var(--surface2);color:var(--text);border:1.5px solid var(--border);display:flex;align-items:center;gap:6px" onclick="toggleDropdownProducto(event)">
+                  📦 <span id="filtroProductoLbl">Todos los productos</span> <span id="filtroProductoContador" style="display:none"></span> ▾
+                </button>
+                <div class="filtro-pago-dropdown filtro-producto-dropdown" id="dropdownProducto">
+                  <div id="filtroProductoOpciones"></div>
+                  <div class="filtro-pago-actions">
+                    <button type="button" onclick="marcarTodosFiltroProducto(true)">Marcar todos</button>
+                    <button type="button" onclick="marcarTodosFiltroProducto(false)">Desmarcar todos</button>
+                  </div>
+                </div>
+              </div>
               <div class="filtro-pago-wrap">
                 <button class="btn-filter" style="background:var(--navy);display:flex;align-items:center;gap:6px" onclick="toggleDropdownPago(event)">
                   💳 Pago <span id="filtroPagoContador" style="display:none"></span> ▾

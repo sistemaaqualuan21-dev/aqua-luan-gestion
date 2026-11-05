@@ -3977,7 +3977,7 @@ function _asesorEnSeleccion(asesor, seleccion) {
   return seleccion.some(s => a === s || (typeof _mismoAsesorLiq === 'function' && _mismoAsesorLiq(a, s)));
 }
 function filtrarHoy() { const hoy = fechaHoy(); document.getElementById('filtroFecha').value = hoy; document.getElementById('filtroFechaHasta').value = hoy; if(typeof _sincronizarFechaRutasConDashboard==='function') _sincronizarFechaRutasConDashboard(); iniciarListenersDashboard(); }
-function limpiarFiltro() { document.getElementById('filtroFecha').value = ''; document.getElementById('filtroFechaHasta').value = fechaHoy(); document.querySelectorAll('#asesorMultiList input[type="checkbox"]').forEach(cb => cb.checked = false); const todos = document.getElementById('asesorMultiTodos'); if (todos) todos.checked = true; _actualizarLabelAsesores(); _productoFiltroSeleccionado = ''; iniciarListenersDashboard(); }
+function limpiarFiltro() { document.getElementById('filtroFecha').value = ''; document.getElementById('filtroFechaHasta').value = fechaHoy(); document.querySelectorAll('#asesorMultiList input[type="checkbox"]').forEach(cb => cb.checked = false); const todos = document.getElementById('asesorMultiTodos'); if (todos) todos.checked = true; _actualizarLabelAsesores(); _productoFiltroSeleccionado = ''; if (typeof _productosFiltroExcluidos !== 'undefined') _productosFiltroExcluidos.clear(); iniciarListenersDashboard(); }
 /* [NEW] Texto legible del rango de fecha actualmente filtrado, para usar en encabezados de PDF */
 function _textoRangoFecha() {
   const desde = document.getElementById('filtroFecha').value;
@@ -4387,23 +4387,90 @@ document.addEventListener('click', (ev) => {
    Se arma dinámicamente desde los productos presentes en el rango de fecha/asesor
    ya filtrado (igual alcance que "Pago": solo afecta la tabla y el PDF, no los
    KPIs ni los gráficos de Resumen General). '' = todos los productos. */
-let _productoFiltroSeleccionado = '';
+let _productoFiltroSeleccionado = ''; // texto con los productos marcados ('' = todos) — lo usan el total y el PDF
+/* [NEW 05-nov] Checklist de productos (varios a la vez), igual que el filtro de Pago:
+   se guardan los productos DESMARCADOS. Vacío = todos los productos. */
+let _productosFiltroExcluidos = new Set();
+let _productosFiltroDisponibles = [];
 function _filtrarPorProducto(pedidos) {
-  if (!_productoFiltroSeleccionado) return pedidos;
-  return pedidos.filter(r => (r['PRODUCTO']||'') === _productoFiltroSeleccionado);
+  if (!_productosFiltroExcluidos.size) return pedidos;
+  return pedidos.filter(r => !_productosFiltroExcluidos.has(r['PRODUCTO']||''));
 }
 function renderFiltroProductoSelect(pedidos) {
-  const sel = document.getElementById('filtroProducto');
-  if (!sel) return;
-  const valorActual = sel.value;
   const productos = Array.from(new Set(pedidos.map(r => r['PRODUCTO']).filter(Boolean))).sort((a,b) => a.localeCompare(b));
-  sel.innerHTML = '<option value="">📦 Todos los productos</option>' + productos.map(p => `<option value="${escHTML(p)}">${escHTML(p)}</option>`).join('');
-  if (productos.includes(valorActual)) sel.value = valorActual; else _productoFiltroSeleccionado = ''; // [NEW] si el producto seleccionado ya no está en el rango filtrado, vuelve a "Todos"
+  _productosFiltroDisponibles = productos;
+  const marcados = productos.filter(p => !_productosFiltroExcluidos.has(p));
+  const hayFiltro = productos.some(p => _productosFiltroExcluidos.has(p));
+  _productoFiltroSeleccionado = hayFiltro ? (marcados.join(', ') || 'Ninguno') : '';
+  const cont = document.getElementById('filtroProductoOpciones');
+  if (cont) {
+    cont.innerHTML = productos.length ? productos.map((p, i) => `
+      <label class="filtro-pago-item">
+        <input type="checkbox" ${_productosFiltroExcluidos.has(p) ? '' : 'checked'} onchange="toggleFiltroProducto(${i}, this.checked)">
+        ${escHTML(p)}
+      </label>`).join('') : '<div style="font-size:12px;color:var(--muted);padding:6px 8px">Sin productos en este período</div>';
+  }
+  const lbl = document.getElementById('filtroProductoLbl');
+  if (lbl) lbl.textContent = !hayFiltro ? 'Todos los productos' : (marcados.length === 1 ? marcados[0] : (marcados.length ? 'Productos' : 'Ningún producto'));
+  const contador = document.getElementById('filtroProductoContador');
+  if (contador) {
+    if (hayFiltro && marcados.length !== 1) { contador.textContent = `(${marcados.length}/${productos.length})`; contador.style.display = 'inline'; }
+    else contador.style.display = 'none';
+  }
 }
-function onChangeFiltroProducto() {
-  const sel = document.getElementById('filtroProducto');
-  _productoFiltroSeleccionado = sel ? sel.value : '';
-  _paginaDetalle = 1; // [NEW]
+function toggleFiltroProducto(i, marcado) {
+  const p = _productosFiltroDisponibles[i];
+  if (p === undefined) return;
+  if (marcado) _productosFiltroExcluidos.delete(p); else _productosFiltroExcluidos.add(p);
+  _paginaDetalle = 1;
+  renderDashboard();
+}
+function marcarTodosFiltroProducto(marcarTodo) {
+  _paginaDetalle = 1;
+  if (marcarTodo) _productosFiltroExcluidos.clear();
+  else _productosFiltroDisponibles.forEach(p => _productosFiltroExcluidos.add(p));
+  renderDashboard();
+}
+function toggleDropdownProducto(ev) {
+  if (ev) ev.stopPropagation();
+  const dd = document.getElementById('dropdownProducto');
+  if (dd) {
+    dd.classList.toggle('open');
+    if (dd.classList.contains('open')) _posicionarDropdownProducto();
+  }
+  const ddPago = document.getElementById('dropdownPago');
+  if (ddPago) ddPago.classList.remove('open');
+}
+document.addEventListener('click', (ev) => {
+  const dd = document.getElementById('dropdownProducto');
+  if (dd && dd.classList.contains('open') && !dd.contains(ev.target) && ev.target.closest('#filtroProductoWrap') === null) {
+    dd.classList.remove('open');
+  }
+});
+/* La lista flota sobre la página (posición fija) para que la tarjeta de la tabla no la
+   recorte; al desplazar o cambiar el tamaño de la ventana se reubica junto al botón. */
+function _posicionarDropdownProducto() {
+  const dd = document.getElementById('dropdownProducto');
+  const btn = document.querySelector('#filtroProductoWrap .btn-filter');
+  if (!dd || !btn || !dd.classList.contains('open')) return;
+  const r = btn.getBoundingClientRect();
+  const ancho = Math.max(240, r.width);
+  if (dd.parentElement !== document.body) document.body.appendChild(dd); // fuera de la tarjeta (su animación recortaba la lista)
+  dd.style.position = 'fixed';
+  dd.style.zIndex = '1000';
+  dd.style.top = (r.bottom + 6) + 'px';
+  dd.style.left = Math.max(8, Math.min(r.right - ancho, window.innerWidth - ancho - 8)) + 'px';
+  dd.style.right = 'auto';
+  dd.style.width = ancho + 'px';
+  dd.style.maxHeight = Math.max(160, window.innerHeight - r.bottom - 20) + 'px';
+}
+window.addEventListener('scroll', (ev) => {
+  const dd = document.getElementById('dropdownProducto');
+  if (dd && !dd.contains(ev.target)) _posicionarDropdownProducto();
+}, true);
+window.addEventListener('resize', _posicionarDropdownProducto);
+function onChangeFiltroProducto() { // se conserva por compatibilidad (ya no hay <select>)
+  _paginaDetalle = 1;
   renderDashboard();
 }
 
