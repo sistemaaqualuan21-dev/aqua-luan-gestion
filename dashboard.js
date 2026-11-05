@@ -6938,10 +6938,17 @@ function _etiquetaRutaParaImpresion(valor){
   if (/ruta/i.test(izq)) return izq.replace(/ruta/ig, 'Ruta');
   return s;
 }
-function exportarPagosGastosPDF() {
+/* [NEW 05-nov] solo = 'pagos' | 'gastos' → imprime solo esa sección (botones nuevos).
+   Sin parámetro imprime Pagos y Gastos juntos, exactamente como antes. */
+function exportarPagosGastosPDF(solo) {
+  const conPagos = solo !== 'gastos';
+  const conGastos = solo !== 'pagos';
   const pagos = pagosDetalleActuales || [];
   const gastos = gastosDetalleActuales || [];
+  if (solo === 'pagos' && !pagos.length) { alert('No hay pagos para imprimir. Aplica los filtros primero.'); return; }
+  if (solo === 'gastos' && !gastos.length) { alert('No hay gastos para imprimir. Aplica los filtros primero.'); return; }
   if (!pagos.length && !gastos.length) { alert('No hay pagos ni gastos para exportar. Aplica los filtros primero.'); return; }
+  const tituloPG = solo === 'pagos' ? 'Pagos' : (solo === 'gastos' ? 'Gastos' : 'Pagos y Gastos');
   const fecha = _textoRangoFecha();
   const asesoresSel = _getAsesoresSeleccionados();
   const asesorLabel = asesoresSel.length
@@ -6970,7 +6977,7 @@ function exportarPagosGastosPDF() {
   // [NEW] URL absoluta del logo — esta ventana se abre en blanco, sin el
   // dashboard como base, así que una ruta relativa no cargaría.
   const logoUrl = location.origin + '/logo-luanaqua.png';
-  v.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Pagos y Gastos — ${asesorLabel} — Aqua Luan — ${fecha}</title>
+  v.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${tituloPG} — ${asesorLabel} — Aqua Luan — ${fecha}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;color:#1a3a5c;padding:24px;background:#fff;}
@@ -6999,26 +7006,26 @@ function exportarPagosGastosPDF() {
   <div class="print-header">
     <img src="${logoUrl}" alt="Aqua Luan" onerror="this.style.display='none'">
     <div>
-      <h1>Pagos y Gastos — ${escHTML(asesorLabel)}</h1>
-      <p>Fecha: ${fecha} · ${pagos.length} pago(s) · ${gastos.length} gasto(s) · Generado: ${new Date().toLocaleString('es-EC')} · ${escHTML(lineaImpresoPor())}</p>
+      <h1>${tituloPG} — ${escHTML(asesorLabel)}</h1>
+      <p>Fecha: ${fecha}${conPagos ? ` · ${pagos.length} pago(s)` : ''}${conGastos ? ` · ${gastos.length} gasto(s)` : ''} · Generado: ${new Date().toLocaleString('es-EC')} · ${escHTML(lineaImpresoPor())}</p>
     </div>
   </div>
-  <div class="seccion-title" style="color:#1565c0">Pagos registrados</div>
+  ${conPagos ? `<div class="seccion-title" style="color:#1565c0">Pagos registrados</div>
   <table class="tabla-pagos">
     <thead><tr><th>Cliente</th><th>Asesor</th><th>Forma de Pago</th><th>Fecha</th><th>Monto</th></tr></thead>
     <tbody>
       ${filasPagos || '<tr><td colspan="5" style="text-align:center;color:#888">Sin pagos en este período</td></tr>'}
       <tr class="total-row-pagos"><td colspan="4" style="text-align:right">TOTAL PAGOS</td><td style="text-align:right">$${totalPagos.toFixed(2)}</td></tr>
     </tbody>
-  </table>
-  <div class="seccion-title" style="color:#c0392b">Gastos registrados</div>
+  </table>` : ''}
+  ${conGastos ? `<div class="seccion-title" style="color:#c0392b">Gastos registrados</div>
   <table class="tabla-gastos">
     <thead><tr><th>Descripción</th><th>Responsable</th><th>Fecha</th><th>Monto</th></tr></thead>
     <tbody>
       ${filasGastos || '<tr><td colspan="4" style="text-align:center;color:#888">Sin gastos en este período</td></tr>'}
       <tr class="total-row-gastos"><td colspan="3" style="text-align:right">TOTAL GASTOS</td><td style="text-align:right">$${totalGastos.toFixed(2)}</td></tr>
     </tbody>
-  </table>
+  </table>` : ''}
   <div class="firmas">
     <div class="firma"><div class="firma-linea">&nbsp;</div><div class="firma-label">Firma Liquidadora</div></div>
     <div class="firma"><div class="firma-linea">&nbsp;</div><div class="firma-label">Firma Asesor</div></div>
