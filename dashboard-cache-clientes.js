@@ -184,3 +184,78 @@
     return _idb('readwrite', function (st) { return st.delete(IDB_CLAVE); });
   };
 })();
+
+/* ═════════════════════════════════════════════════════════════════
+   [NEW 18-nov] Consultar por Cliente muestra TODO el historial, así que el filtro de
+   fecha de la barra superior no aplica ahí. Mientras esa pestaña está abierta se
+   bloquean Desde, Hasta, Hoy, Aplicar y Todo (así no se disparan recargas del rango
+   para nada). Al salir a cualquier otra pestaña se desbloquean solos.
+   - Solo cambia el estado "deshabilitado" de esos controles: NO se borra ni se modifica
+     ninguna fecha, y el filtro de Asesor queda libre.
+   - Solo vuelve a habilitar lo que ESTE bloque bloqueó (data-bloq-cli), nunca otra cosa.
+   - Se decide por la sección realmente activa (no por el nombre que llegó a
+     switchSeccionDash), así también funciona si el rol es secretaria y la redirigen.
+   - No toca fórmulas ni ninguna función existente: solo engancha el cambio de sección.
+══════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var AVISO = 'Consultar por Cliente muestra todo el historial: el filtro de fecha no aplica aquí.';
+
+  function _controles() {
+    var r = [];
+    try {
+      var f = document.getElementById('filtroFecha'), h = document.getElementById('filtroFechaHasta');
+      if (f) r.push(f);
+      if (h) r.push(h);
+      var sel = [
+        '#viewDashboard .filter-bar button[onclick*="filtrarHoy"]',
+        '#viewDashboard .filter-bar button[onclick*="iniciarListenersDashboard"]',
+        '#viewDashboard .filter-bar button[onclick*="limpiarFiltro"]'
+      ].join(',');
+      document.querySelectorAll(sel).forEach(function (b) { r.push(b); });
+    } catch (e) { console.warn('Bloqueo de fecha (controles):', e); }
+    return r;
+  }
+
+  function _estilo() {
+    if (document.getElementById('estiloBloqueoFechaCli')) return;
+    var st = document.createElement('style');
+    st.id = 'estiloBloqueoFechaCli';
+    st.textContent = '.filter-bar [data-bloq-cli="1"]{opacity:.45;cursor:not-allowed;}';
+    document.head.appendChild(st);
+  }
+
+  function _sincronizar() {
+    try {
+      var sec = document.getElementById('seccion-cliente');
+      var bloquear = !!(sec && sec.classList.contains('active'));
+      _estilo();
+      _controles().forEach(function (el) {
+        if (bloquear) {
+          if (el.disabled) return; // ya estaba deshabilitado por otra cosa: no se toca
+          el.disabled = true;
+          el.setAttribute('data-bloq-cli', '1');
+          el.setAttribute('data-titulo-orig', el.getAttribute('title') || '');
+          el.setAttribute('title', AVISO);
+        } else if (el.getAttribute('data-bloq-cli') === '1') {
+          el.disabled = false;
+          el.removeAttribute('data-bloq-cli');
+          var t = el.getAttribute('data-titulo-orig');
+          el.removeAttribute('data-titulo-orig');
+          if (t) el.setAttribute('title', t); else el.removeAttribute('title');
+        }
+      });
+    } catch (e) { console.warn('Bloqueo de fecha en Consultar por Cliente:', e); }
+  }
+
+  if (typeof switchSeccionDash === 'function') {
+    var _switchOriginalBloqueo = switchSeccionDash;
+    switchSeccionDash = function () {
+      var r = _switchOriginalBloqueo.apply(this, arguments);
+      _sincronizar();
+      return r;
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _sincronizar);
+  else _sincronizar();
+})();
