@@ -4878,6 +4878,7 @@ function _htmlPdfVenta(d) {
 function renderResumenPorCliente(pedidos) {
   const card = document.getElementById('resumenClientesCard');
   const cont = document.getElementById('resumenClientesContenido');
+  if (!card || !cont) return; // [18-nov] "Resumen por Cliente" se quitó del dashboard: sin tarjeta no hay nada que dibujar
   if (!pedidos.length) { card.style.display = 'none'; cont.innerHTML=''; return; }
   const porCliente = {};
   pedidos.forEach(r => {
